@@ -1,0 +1,21 @@
+{
+  "ModId": "BlueMage",
+  "ModName": "FFT Blue Mage",
+  "ModAuthor": "Dana Crysalis",
+  "ModVersion": "1.0.0",
+  "ModDescription": "Adds Blue Mage to FFT: The Ivalice Chronicles",
+  "ModDll": "BlueMage.dll",
+  "ModIcon": "Preview.png",
+  "ModR2RManagedDll32": "x86/BlueMage.dll",
+  "ModR2RManagedDll64": "x64/BlueMage.dll",
+  "ModNativeDll32": "",
+  "ModNativeDll64": "",
+  "IsLibrary": false,
+  "ReleaseMetadataFileName": "BlueMage.ReleaseMetadata.json",
+  "PluginData": {},
+  "IsUniversalMod": false,
+  "ModDependencies": [ "reloaded.sharedlib.hooks" ],
+  "OptionalDependencies": [],
+  "SupportedAppId": [],
+  "ProjectUrl": ""
+}
