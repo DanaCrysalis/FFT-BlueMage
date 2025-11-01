@@ -74,12 +74,12 @@ namespace BlueMage
             {  0x91, 0x11, 0x78, 0x40, 0x01, 0x00, 0x00, 0x00 }),
 
             // Empty Job 57 Portrait Patch - texture 206
-            new MemoryPatch("Empty Job 57 Portrait Patch 1", 0x67EAA2, new byte[] { 0xCE }),
-            new MemoryPatch("Empty Job 57 Portrait Patch 2", 0x67B062, new byte[] { 0xCE }),
-            new MemoryPatch("Empty Job 57 Portrait Patch 3", 0x67B7B2, new byte[] { 0xCE }),
-            new MemoryPatch("Empty Job 57 Portrait Patch 4", 0x67BBF2, new byte[] { 0xCE }),
-            new MemoryPatch("Empty Job 57 Portrait Patch 5", 0x67CA92, new byte[] { 0xCE }),
-            new MemoryPatch("Empty Job 57 Portrait Patch 6", 0x67E702, new byte[] { 0xCE }),
+            new MemoryPatch("Empty Job 57 Portrait Patch 1", 0x67EAA2, new byte[] { 0x39 }),
+            new MemoryPatch("Empty Job 57 Portrait Patch 2", 0x67B062, new byte[] { 0x39 }),
+            new MemoryPatch("Empty Job 57 Portrait Patch 3", 0x67B7B2, new byte[] { 0x39 }),
+            new MemoryPatch("Empty Job 57 Portrait Patch 4", 0x67BBF2, new byte[] { 0x39 }),
+            new MemoryPatch("Empty Job 57 Portrait Patch 5", 0x67CA92, new byte[] { 0x39 }),
+            new MemoryPatch("Empty Job 57 Portrait Patch 6", 0x67E702, new byte[] { 0x39 }),
         };
 
         public Mod(ModContext context)
@@ -114,7 +114,8 @@ namespace BlueMage
                 var mainModule = Process.GetCurrentProcess().MainModule;
                 if (mainModule != null)
                 {
-                    _dynamicJobAddress = mainModule.BaseAddress + result.Offset;
+                    // moving the Job entry back one since we started at 1
+                    _dynamicJobAddress = mainModule.BaseAddress + result.Offset - JOB_ENTRY_SIZE;
                     _logger.WriteLine($"[BlueMage] Found job table at: {_dynamicJobAddress:X}");
 
                     // Check if we have all addresses before applying patches
@@ -277,27 +278,11 @@ namespace BlueMage
                 // Add dynamic patches based on job table location
                 long jobTableOffset = _dynamicJobAddress.ToInt64() - baseAddress.ToInt64();
 
-                // Job 56 (Red Mage) = Job ID 57 = index 56 (since Job ID 1 is at index 0)
-                allPatches.Add(new MemoryPatch(
-                    "Red Mage - Job Bytes",
-                    (int)(jobTableOffset + (JOB_ENTRY_SIZE * 56)),
-                    new byte[]
-                    {
-                        0x51, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                        0xD1, 0x80, 0x1F, 0xFF, 0x00,
-                        0x0B, 0x5A, 0x08, 0x78, 0x64, 0x5A, 0x32, 0x64, 0x30, 0x6E, 0x04, 0x04, 0x0A,
-                        0x00, 0x00, 0x00, 0x00, 0x00,
-                        0x00, 0x40, 0x00, 0x00, 0x00,
-                        0x00, 0x00, 0x00, 0x00, 0x00,
-                        0x00, 0x00, 0x00, 0x00,
-                        0x00, 0x00, 0x00
-                    }
-                ));
-
-                // Job 57 (Blue Mage) = Job ID 56 = index 57
+                // Job 56 (Blue Mage)
+                // Temp move to Valmafra: 33
                 allPatches.Add(new MemoryPatch(
                     "Blue Mage - Job Bytes",
-                    (int)(jobTableOffset + (JOB_ENTRY_SIZE * 57)),
+                    (int)(jobTableOffset + (JOB_ENTRY_SIZE * 33)),
                     new byte[]
                     {
                         0x50, 0xDE, 0x01, 0xD9, 0x01, 0x00, 0x00, 0x00, 0x00,
@@ -311,15 +296,15 @@ namespace BlueMage
                     }
                 ));
 
-                // Job 58 (Dark Knight Temporary) = Job ID 59 = index 58
+                // Job 57 (Red Mage) 
                 allPatches.Add(new MemoryPatch(
-                    "Dark Knight Temporary - Job Bytes",
-                    (int)(jobTableOffset + (JOB_ENTRY_SIZE * 58)),
+                    "Red Mage - Job Bytes",
+                    (int)(jobTableOffset + (JOB_ENTRY_SIZE * 57)),
                     new byte[]
                     {
-                        0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                        0x9A, 0x40, 0x1D, 0xFF, 0x00,
-                        0x0C, 0x50, 0x14, 0x5A, 0x64, 0x64, 0x28, 0x8C, 0x32, 0x50, 0x03, 0x03, 0x00,
+                        0x51, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                        0xD1, 0x80, 0x1F, 0xFF, 0x00,
+                        0x0B, 0x5A, 0x08, 0x78, 0x64, 0x5A, 0x32, 0x64, 0x30, 0x6E, 0x04, 0x04, 0x0A,
                         0x00, 0x00, 0x00, 0x00, 0x00,
                         0x00, 0x40, 0x00, 0x00, 0x00,
                         0x00, 0x00, 0x00, 0x00, 0x00,
@@ -413,19 +398,16 @@ namespace BlueMage
                 long paletteOffset = _dynamicPaletteAddress.ToInt64() - baseAddress.ToInt64();
                 long palette2Offset = _dynamicPaletteAddress2.ToInt64() - baseAddress.ToInt64();
 
-                // Red Mage is at index 57, Blue 58, DK 59
-                allPatches.Add(new MemoryPatch("Red Mage Palette Swap",(int)(paletteOffset + (PALETTE_ENTRY_SIZE * 57)),new byte[] { 0x82 }));
-                allPatches.Add(new MemoryPatch("Blue Mage Palette Swap",(int)(paletteOffset + (PALETTE_ENTRY_SIZE * 58)),new byte[] { 0x5B }));
-                allPatches.Add(new MemoryPatch("Dark Knight Palette Swap",(int)(paletteOffset + (PALETTE_ENTRY_SIZE * 59)),new byte[] { 0x70, 0x03 }));
+                // Red Mage is at index 57, Blue 56
+                allPatches.Add(new MemoryPatch("Blue Mage Palette Swap", (int)(paletteOffset + (PALETTE_ENTRY_SIZE * 56)), new byte[] { 0x5B }));
+                allPatches.Add(new MemoryPatch("Blue Mage Palette Swap 2", (int)(palette2Offset + (PALETTE_ENTRY_SIZE * 56)), new byte[] { 0x5B }));
+                allPatches.Add(new MemoryPatch("Red Mage Palette Swap", (int)(paletteOffset + (PALETTE_ENTRY_SIZE * 57)),new byte[] { 0x82 }));
                 allPatches.Add(new MemoryPatch("Red Mage Palette Swap 2", (int)(palette2Offset + (PALETTE_ENTRY_SIZE * 57)), new byte[] { 0x82 }));
-                allPatches.Add(new MemoryPatch("Blue Mage Palette Swap 2", (int)(palette2Offset + (PALETTE_ENTRY_SIZE * 58)), new byte[] { 0x5B }));
-                allPatches.Add(new MemoryPatch("Dark Knight Palette Swap 2", (int)(palette2Offset + (PALETTE_ENTRY_SIZE * 59)), new byte[] { 0x70, 0x03 }));
+                
 
                 // Add dynamic animation patches
                 long animationOffset = _dynamicAnimationAddress.ToInt64() - baseAddress.ToInt64();
 
-                // Sanguine Sword: index 45
-                allPatches.Add(new MemoryPatch("Sanguine Sword Anim - Swing Sword",(int)(animationOffset + (ANIMATION_ENTRY_SIZE * 45)),new byte[] { 0x07, 0x00, 0x00 }));
                 // Mighty Guard: Index 339 (formerly Thunder Breath)
                 allPatches.Add(new MemoryPatch("Mighty Guard Animation Change",(int)(animationOffset + (ANIMATION_ENTRY_SIZE * 339)),new byte[] { 0x2A, 0x00, 0x00 }));
 
@@ -443,14 +425,7 @@ namespace BlueMage
                 // Add VFX patches
                 long VFXOffset = _dynamicVFXAddress.ToInt64() - baseAddress.ToInt64();
 
-                // Sanguine Sword: index 45
-                allPatches.Add(new MemoryPatch("Sanguine Sword VFX patch", (int)(VFXOffset + (VFX_ENTRY_SIZE * 45)), new byte[] { 0xAD, 0x00 }));
-                allPatches.Add(new MemoryPatch("Infernal Strike VFX patch", (int)(VFXOffset + (VFX_ENTRY_SIZE * 184)), new byte[] { 0xAC, 0x00 }));
-                allPatches.Add(new MemoryPatch("Crushing Blow VFX patch", (int)(VFXOffset + (VFX_ENTRY_SIZE * 219)), new byte[] { 0xF6, 0x00 }));
-                allPatches.Add(new MemoryPatch("Abyssal Blade VFX patch", (int)(VFXOffset + (VFX_ENTRY_SIZE * 220)), new byte[] { 0x62, 0x00 }));
-                allPatches.Add(new MemoryPatch("Mighty Guard VFX patch", (int)(VFXOffset + (VFX_ENTRY_SIZE * 339)), new byte[] { 0x0D, 0x00 }));
-
-
+               
                 // Apply all patches
                 _logger.WriteLine($"[BlueMage] Applying {allPatches.Count} total patches ({_staticMemoryPatches.Length} static, {allPatches.Count - _staticMemoryPatches.Length} dynamic)");
 
