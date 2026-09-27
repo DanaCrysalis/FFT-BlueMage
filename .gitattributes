@@ -61,3 +61,16 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+###############################################################################
+# FFT game data: always binary, never line-ending converted
+###############################################################################
+*.nxd     binary
+*.bin     binary
+*.tex     binary
+*.utexpt  binary
+*.uib     binary
+*.tga     binary
+*.e       binary
+*.pzd     binary
+*.png     binary
