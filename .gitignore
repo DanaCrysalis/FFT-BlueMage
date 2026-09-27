@@ -361,3 +361,17 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+##
+## Reloaded-II mod
+##
+
+# Publish.ps1 / BuildLinked.ps1 output
+Publish/
+*.ReleaseMetadata.json
+*.ReleaseMetadata.json.br
+Sewer56.Update.Metadata.json
+
+# Release archives
+*.7z
+*.rar
+*.zip

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+FFT Blue and Red Mages - ability animation edits (fftivc.utility.modloader).
+Mighty Guard (336, formerly Tail Sweep) plays the Wall animation. It charges, unlike Tail Sweep, so it takes the
+breath abilities' charge effect type 12, which keeps the charge pose for both human and monster casters.
+-->
+
+<AbilityTypeTable>
+  <Version>1</Version>
+  <Entries>
+    <AbilityType>
+      <Id>336</Id> <!-- Mighty Guard (was Tail Sweep) -->
+      <ChargeEffectType>12</ChargeEffectType>
+      <AnimationId>42</AnimationId>
+    </AbilityType>
+  </Entries>
+</AbilityTypeTable>

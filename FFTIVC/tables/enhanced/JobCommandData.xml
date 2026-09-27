@@ -1,0 +1,80 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<!-- Refer to:
+This table file is used to overwrite the game's hardcoded job command table.
+
+https://ffhacktics.com/wiki/Skillsets
+This table links to nex table 'JobCommand'. Some properties edited here may be overriden by the nex table.
+
+You can use this file as a base to edit Item data in your mod.
+Simply copy this file to your mod's folder under FFTIVC/tables/<enhanced/classic/combined>/JobCommandData.xml.
+
+IMPORTANT: You are free to remove everything and **SHOULD ONLY LEAVE ELEMENTS THAT YOU HAVE EDITED** to avoid conflicts between mods.
+Only properties that are actually included in this file will be tracked as edited. Properties not edited will inherit their
+value from the original table or, from other mods making changes depending on mod order.
+
+IMPORTANT 2: The Id property must NOT be removed for nodes that you're leaving here!
+
+IMPORTANT 3: You do not need to worry about setting ExtendAbilityIdFlagBits or ExtendReactionSupportMovementIdFlagBits.
+The loader will fill these according to ids. You're free to use ids 0-512 directly.
+-->
+
+<JobCommandTable>
+  <Version>1</Version>
+  <Entries>
+    <JobCommand>
+      <Id>80</Id>
+      <ExtendAbilityIdFlagBits>ExtendedAbility8, ExtendedAbility7, ExtendedAbility6, ExtendedAbility5, ExtendedAbility4, ExtendedAbility3, ExtendedAbility2, ExtendedAbility1, ExtendedAbility14, ExtendedAbility13, ExtendedAbility12, ExtendedAbility11, ExtendedAbility10, ExtendedAbility9</ExtendAbilityIdFlagBits>
+      <ExtendReactionSupportMovementIdFlagBits>ExtendRSMId6, ExtendRSMId5, ExtendRSMId4, ExtendRSMId3, ExtendRSMId2, ExtendRSMId1</ExtendReactionSupportMovementIdFlagBits>
+      <AbilityId1>269</AbilityId1>
+      <AbilityId2>319</AbilityId2>
+      <AbilityId3>312</AbilityId3>
+      <AbilityId4>336</AbilityId4> <!-- Mighty Guard -->
+      <AbilityId5>304</AbilityId5>
+      <AbilityId6>282</AbilityId6>
+      <AbilityId7>328</AbilityId7>
+      <AbilityId8>289</AbilityId8>
+      <AbilityId9>271</AbilityId9>
+      <AbilityId10>308</AbilityId10>
+      <AbilityId11>292</AbilityId11>
+      <AbilityId12>298</AbilityId12>
+      <AbilityId13>322</AbilityId13>
+      <AbilityId14>277</AbilityId14>
+      <AbilityId15>332</AbilityId15>
+      <AbilityId16>344</AbilityId16>
+      <ReactionSupportMovementId1>443</ReactionSupportMovementId1> <!-- Replenish MP, replaces Counter Tackle -->
+      <ReactionSupportMovementId2>460</ReactionSupportMovementId2>
+      <ReactionSupportMovementId3>478</ReactionSupportMovementId3>
+      <ReactionSupportMovementId4>479</ReactionSupportMovementId4>
+      <ReactionSupportMovementId5>463</ReactionSupportMovementId5>
+      <ReactionSupportMovementId6>486</ReactionSupportMovementId6>
+    </JobCommand>
+    <JobCommand>
+      <Id>81</Id>
+      <ExtendAbilityIdFlagBits>0</ExtendAbilityIdFlagBits>
+      <ExtendReactionSupportMovementIdFlagBits>ExtendRSMId6, ExtendRSMId5, ExtendRSMId4, ExtendRSMId3, ExtendRSMId2, ExtendRSMId1</ExtendReactionSupportMovementIdFlagBits>
+      <AbilityId1>16</AbilityId1>
+      <AbilityId2>17</AbilityId2>
+      <AbilityId3>20</AbilityId3>
+      <AbilityId4>21</AbilityId4>
+      <AbilityId5>24</AbilityId5>
+      <AbilityId6>25</AbilityId6>
+      <AbilityId7>1</AbilityId7>
+      <AbilityId8>2</AbilityId8>
+      <AbilityId9>5</AbilityId9>
+      <AbilityId10>9</AbilityId10>
+      <AbilityId11>11</AbilityId11>
+      <AbilityId12>32</AbilityId12>
+      <AbilityId13>34</AbilityId13>
+      <AbilityId14>58</AbilityId14>
+      <AbilityId15>52</AbilityId15>
+      <AbilityId16>56</AbilityId16>
+      <ReactionSupportMovementId1>436</ReactionSupportMovementId1>
+      <ReactionSupportMovementId2>481</ReactionSupportMovementId2> <!-- Dualcast, replaces Equip Axes -->
+      <ReactionSupportMovementId3>478</ReactionSupportMovementId3>
+      <ReactionSupportMovementId4>479</ReactionSupportMovementId4>
+      <ReactionSupportMovementId5>463</ReactionSupportMovementId5>
+      <ReactionSupportMovementId6>486</ReactionSupportMovementId6>
+    </JobCommand>
+  </Entries>
+</JobCommandTable>

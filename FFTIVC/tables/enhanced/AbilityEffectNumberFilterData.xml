@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+FFT Blue and Red Mages - ability effect edits (fftivc.utility.modloader).
+Mighty Guard (336, formerly Tail Sweep) uses the Wall effect.
+Replenish MP (443) uses the Absorb MP effect.
+-->
+
+<AbilityEffectNumberFilterData>
+  <Version>1</Version>
+  <Entries>
+    <AbilityEffectNumberFilter>
+      <Id>336</Id> <!-- Mighty Guard (was Tail Sweep) -->
+      <EffectId>13</EffectId>
+    </AbilityEffectNumberFilter>
+    <AbilityEffectNumberFilter>
+      <Id>443</Id> <!-- Replenish MP (was an empty Reaction slot, no effect) -->
+      <EffectId>269</EffectId> <!-- Absorb MP's -->
+    </AbilityEffectNumberFilter>
+  </Entries>
+</AbilityEffectNumberFilterData>

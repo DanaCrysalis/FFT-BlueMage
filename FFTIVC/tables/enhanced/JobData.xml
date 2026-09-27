@@ -1,0 +1,451 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+FFT Blue and Red Mages - job table edits (fftivc.utility.modloader).
+Only edited properties are listed so other mods can edit the same jobs.
+
+56 / 57: Blue Mage / Red Mage, placed in two unused job slots (full entries, the vanilla slots held junk data).
+94+    : Monster Rebalance (only the properties that differ from vanilla).
+-->
+
+<JobTable>
+  <Version>1</Version>
+  <Entries>
+    <Job>
+      <Id>56</Id> <!-- Blue Mage (was an unused job slot) -->
+      <JobCommandId>80</JobCommandId>
+      <InnateAbilityId1>478</InnateAbilityId1>
+      <InnateAbilityId2>473</InnateAbilityId2>
+      <InnateAbilityId3>0</InnateAbilityId3>
+      <InnateAbilityId4>0</InnateAbilityId4>
+      <EquippableItems>Unarmed, Knife, Sword, Rod, Staff, Shield, Helmet, Hat, HairAdornment, Armor, Clothing, Robe, Shoes, Armguard, Ring, Armlet, Cloak, Perfume</EquippableItems>
+      <HPGrowth>11</HPGrowth>
+      <HPMultiplier>90</HPMultiplier>
+      <MPGrowth>8</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <SpeedGrowth>100</SpeedGrowth>
+      <SpeedMultiplier>90</SpeedMultiplier>
+      <PAGrowth>50</PAGrowth>
+      <PAMultiplier>100</PAMultiplier>
+      <MAGrowth>48</MAGrowth>
+      <MAMultiplier>110</MAMultiplier>
+      <Move>4</Move>
+      <Jump>4</Jump>
+      <CharacterEvasion>10</CharacterEvasion>
+      <InnateStatus>None</InnateStatus>
+      <ImmuneStatus>Traitor</ImmuneStatus>
+      <StartingStatus>None</StartingStatus>
+      <AbsorbElements>None</AbsorbElements>
+      <NullifyElements>None</NullifyElements>
+      <HalveElements>None</HalveElements>
+      <WeakElements>None</WeakElements>
+      <MonsterPortrait>0</MonsterPortrait>
+      <MonsterPalette>0</MonsterPalette>
+      <MonsterGraphic>0</MonsterGraphic>
+    </Job>
+    <Job>
+      <Id>57</Id> <!-- Red Mage (was an unused job slot) -->
+      <JobCommandId>81</JobCommandId>
+      <InnateAbilityId1>0</InnateAbilityId1>
+      <InnateAbilityId2>0</InnateAbilityId2>
+      <InnateAbilityId3>0</InnateAbilityId3>
+      <InnateAbilityId4>0</InnateAbilityId4>
+      <EquippableItems>Unarmed, Knife, Sword, Rod, Staff, Shield, Helmet, Hat, HairAdornment, Armor, Clothing, Robe, Shoes, Armguard, Ring, Armlet, Cloak, Perfume</EquippableItems>
+      <HPGrowth>11</HPGrowth>
+      <HPMultiplier>90</HPMultiplier>
+      <MPGrowth>8</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <SpeedGrowth>100</SpeedGrowth>
+      <SpeedMultiplier>90</SpeedMultiplier>
+      <PAGrowth>50</PAGrowth>
+      <PAMultiplier>100</PAMultiplier>
+      <MAGrowth>48</MAGrowth>
+      <MAMultiplier>110</MAMultiplier>
+      <Move>4</Move>
+      <Jump>4</Jump>
+      <CharacterEvasion>10</CharacterEvasion>
+      <InnateStatus>None</InnateStatus>
+      <ImmuneStatus>Traitor</ImmuneStatus>
+      <StartingStatus>None</StartingStatus>
+      <AbsorbElements>None</AbsorbElements>
+      <NullifyElements>None</NullifyElements>
+      <HalveElements>None</HalveElements>
+      <WeakElements>None</WeakElements>
+      <MonsterPortrait>0</MonsterPortrait>
+      <MonsterPalette>0</MonsterPalette>
+      <MonsterGraphic>0</MonsterGraphic>
+    </Job>
+    <Job>
+      <Id>94</Id> <!-- Chocobo / チョコボ / Chocobo / Chocobo -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>57</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>95</Id> <!-- Black Chocobo / 黒チョコボ / Chocobo noir / Schwarzer Chocobo -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>160</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>62</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>96</Id> <!-- Red Chocobo / 赤チョコボ / Chocobo rouge / Roter Chocobo -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>122</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>60</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>97</Id> <!-- Goblin / ゴブリン / Gobelin / Goblin -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>122</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>52</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>98</Id> <!-- Black Goblin / ブラックゴブリン / Gobelin noir / Schwarzer Goblin -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>115</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>53</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>99</Id> <!-- Gobbledygook / ガルブデガック / Gobeldygook / Gubeldubel -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>150</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>56</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>100</Id> <!-- Bomb / ボム / Bombo / Bomber -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>56</MAMultiplier>
+      <InnateStatus>Float</InnateStatus>
+      <ImmuneStatus>Vampire, Float</ImmuneStatus>
+    </Job>
+    <Job>
+      <Id>101</Id> <!-- Grenade / グレネイド / Grenade / Granate -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>57</MAMultiplier>
+      <InnateStatus>Float</InnateStatus>
+      <ImmuneStatus>Vampire, Float</ImmuneStatus>
+    </Job>
+    <Job>
+      <Id>102</Id> <!-- Exploder / イクスプロジャ / Explosif / Explosio -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>58</MAMultiplier>
+      <InnateStatus>Float</InnateStatus>
+      <ImmuneStatus>Vampire, Float</ImmuneStatus>
+    </Job>
+    <Job>
+      <Id>103</Id> <!-- Red Panther / レッドパンサー / Panthère rouge / Rotpanther -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>55</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>104</Id> <!-- Coeurl / クアール / Coeurl / Coeurl -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>62</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>105</Id> <!-- Vampire Cat / バンパイア / Coeurl vampire / Vampirkatze -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>52</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>106</Id> <!-- Piscodaemon / ピスコディーモン / Piscodémon / Pisco-Dämon -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>58</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>107</Id> <!-- Squidraken / スクイドラーケン / Pieuvraken / Vikalmar -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>58</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>108</Id> <!-- Mindflayer / マインドフレイア / Flagelleur mental / Gedankenschinder -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>56</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>109</Id> <!-- Skeleton / スケルトン / Homme-squelette / Skelett -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>52</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>110</Id> <!-- Bonesnatch / ボーンスナッチ / Désosseur / Knochenfang -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>53</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>111</Id> <!-- Skeletal Fiend / リビングボーン / Os-vivant / Gerippe -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>54</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>112</Id> <!-- Ghoul / グール / Goule / Ghul -->
+      <InnateAbilityId2>483</InnateAbilityId2>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>62</MAMultiplier>
+      <InnateStatus>Undead, Float</InnateStatus>
+      <ImmuneStatus>Vampire, Reraise, Poison, Regen</ImmuneStatus>
+    </Job>
+    <Job>
+      <Id>113</Id> <!-- Ghast / ガスト / Blafard / Schreck -->
+      <InnateAbilityId2>483</InnateAbilityId2>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>63</MAMultiplier>
+      <InnateStatus>Undead, Float</InnateStatus>
+      <ImmuneStatus>Vampire, Reraise, Poison, Regen</ImmuneStatus>
+    </Job>
+    <Job>
+      <Id>114</Id> <!-- Revenant / レブナント / Revenant / Wiedergänger -->
+      <InnateAbilityId2>483</InnateAbilityId2>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>65</MAMultiplier>
+      <InnateStatus>Undead, Float</InnateStatus>
+      <ImmuneStatus>Vampire, Reraise, Poison, Regen</ImmuneStatus>
+    </Job>
+    <Job>
+      <Id>115</Id> <!-- Floating Eye / フロータイボール / Œil flottant / Schwebauge -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>57</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>116</Id> <!-- Ahriman / アーリマン / Ahriman / Ahriman -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>56</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>117</Id> <!-- Plague Horror / プレイグ / Œil pestilentiel / Teufelsauge -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>70</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>118</Id> <!-- Jura Aevis / ジュラエイビス / Juraeibis / Jura-Avis -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>52</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>119</Id> <!-- Steelhawk / スチールホーク / Faucon d'acier / Stahlfalke -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>55</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>120</Id> <!-- Cockatrice / コカトリス / Cocatrix / Cockatrice -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>60</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>121</Id> <!-- Pig / うりぼう / Marcassin / Schwein -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>65</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>122</Id> <!-- Swine / ポーキー / Porcelet / Schweinchen -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>65</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>123</Id> <!-- Wild Boar / ワイルドボー / Sanglier / Wildschwein -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>65</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>124</Id> <!-- Dryad / ウッドマン / Sylvanien / Dryade -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>2</MPGrowth>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>60</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>125</Id> <!-- Treant / トレント / Tréant / Baumschrat -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>2</MPGrowth>
+      <MPMultiplier>160</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>52</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>126</Id> <!-- Elder Treant / タイジユ / Ent / Baumweise -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>2</MPGrowth>
+      <MPMultiplier>160</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>59</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>127</Id> <!-- Wisenkin / 牛鬼 / Bonnacon / Stiergötze -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>108</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>128</Id> <!-- Minotaur / ミノタウロス / Minotaure / Minotaurus -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>16</MPGrowth>
+      <MPMultiplier>80</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>108</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>129</Id> <!-- Sekhret / セクレト / Sekhret / Secreto -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>108</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>130</Id> <!-- Malboro / モルボル / Morbol / Morbol -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+    </Job>
+    <Job>
+      <Id>131</Id> <!-- Ochu / オチュー / Otyugh / Ochu -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+    </Job>
+    <Job>
+      <Id>132</Id> <!-- Greater Malboro / モルボルグレイト / Morbol ancien / Groß-Morbol -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+    </Job>
+    <Job>
+      <Id>133</Id> <!-- Behemoth / ベヒーモス / Béhémoth / Behemoth -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>62</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>134</Id> <!-- Behemoth King / キングベヒーモス / Béhémoth roi / Behemoth-König -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>60</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>135</Id> <!-- Dark Behemoth / ダークベヒーモス / Béhémoth sombre / Schatten-Behemoth -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MAGrowth>8</MAGrowth>
+      <MAMultiplier>57</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>136</Id> <!-- Dragon / ドラゴン / Dragon / Drache -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>60</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>137</Id> <!-- Blue Dragon / ブルードラゴン / Dragon bleu / Blauer Drache -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>9</MAGrowth>
+      <MAMultiplier>62</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>138</Id> <!-- Red Dragon / レッドドラゴン / Dragon rouge / Roter Drache -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+      <MPGrowth>3</MPGrowth>
+      <MPMultiplier>120</MPMultiplier>
+      <MAGrowth>8</MAGrowth>
+      <MAMultiplier>60</MAMultiplier>
+    </Job>
+    <Job>
+      <Id>139</Id> <!-- Hydra / ヒュドラ / Hydre / Hydra -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+    </Job>
+    <Job>
+      <Id>140</Id> <!-- Greater Hydra / ハイドラ / Guivre / Ghidra -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+    </Job>
+    <Job>
+      <Id>141</Id> <!-- Tiamat / ティアマット / Tiamat / Tiamat -->
+      <InnateAbilityId4>483</InnateAbilityId4>
+    </Job>
+  </Entries>
+</JobTable>

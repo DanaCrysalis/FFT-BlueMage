@@ -1,0 +1,169 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+This table file is used to overwrite the game's hardcoded ability table.
+
+Refer to: https://ffhacktics.com/wiki/Ability_Data 
+This table links to nex table 'Ability'. Some properties edited here may be overriden by the nex table.
+
+You can use this file as a base to edit Ability data in your mod.
+Simply copy this file to your mod's folder under FFTIVC/tables/<enhanced/classic/combined>/AbilityData.xml
+
+IMPORTANT: You are free to remove everything and **SHOULD ONLY LEAVE ELEMENTS THAT YOU HAVE EDITED** to avoid conflicts between mods.
+Only properties that are actually included in this file will be tracked as edited. Properties not edited will inherit their
+value from the original table or, from other mods making changes depending on mod order.
+
+IMPORTANT 2: The Id property must NOT be removed for nodes that you're leaving here!
+
+For available flags, refer to https://github.com/Nenkai/fftivc.utility.modloader/blob/master/fftivc.utility.modloader.Interfaces/Tables/Structures/ABILITY_COMMON_DATA.cs
+-->
+
+<AbilityTable>
+  <Version>1</Version>
+  <Entries>
+    <Ability>
+      <Id>269</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetAllies, HP, UndeadReverse, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>271</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetEnemies, HP, Evadeable, PhysicalAttack, EvadeWithMotion, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>277</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetEnemies, HP, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>282</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetEnemies, AddStatus, Evadeable, MagicalAttack, StopAtObstacle, EvadeWithMotion, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>289</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetEnemies, Stats, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>292</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetEnemies, HP, Evadeable, PhysicalAttack, StopAtObstacle, EvadeWithMotion, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>298</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetEnemies, HP, Evadeable, UndeadReverse, PhysicalAttack, EvadeWithMotion, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>304</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetEnemies, AddStatus, Silence, MagicalAttack, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>308</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetEnemies, HP, PhysicalAttack, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>312</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetAllies, CancelStatus, UndeadReverse, EvadeWithMotion, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>319</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetAllies, MP, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>322</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetEnemies, HP, PhysicalAttack, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>328</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetEnemies, CancelStatus, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>332</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetEnemies, HP, MagicalAttack, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>336</Id> <!-- Mighty Guard (was Tail Sweep) -->
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetAllies, AddStatus, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>344</Id>
+      <JPCost>9999</JPCost>
+      <ChanceToLearn>100</ChanceToLearn>
+      <Flags>LearnOnHit, DisplayAbilityName, DontLearnWithJP</Flags>
+      <AbilityType>Normal</AbilityType>
+      <AIBehaviorFlags>TargetEnemies, HP, RandomHits, MagicalAttack, UsableByAI</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>481</Id> <!-- Dualcast (was an empty Support slot between Reequip and Swiftspell) -->
+      <JPCost>2000</JPCost>
+      <ChanceToLearn>50</ChanceToLearn>
+      <Flags>0</Flags>
+      <AbilityType>Support</AbilityType>
+      <AIBehaviorFlags>0</AIBehaviorFlags>
+    </Ability>
+    <Ability>
+      <Id>443</Id> <!-- Replenish MP (was an empty Reaction slot between Counter and Cup of Life) -->
+      <JPCost>300</JPCost>
+      <ChanceToLearn>50</ChanceToLearn>
+      <Flags>DisplayAbilityName</Flags>
+      <AbilityType>Reaction</AbilityType>
+      <AIBehaviorFlags>0</AIBehaviorFlags>
+    </Ability>
+  </Entries>
+</AbilityTable>

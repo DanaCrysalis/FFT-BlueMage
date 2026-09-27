@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+FFT Blue and Red Mages - monster skillset edits (fftivc.utility.modloader).
+Dragon gets the monster Thunder Breath (339) in slot 2, so each dragon has its own element available normally:
+Dragon = Thunder, Blue Dragon = Ice (337), Red Dragon = Fire (338). The Dragon's slot-4 ability 336 is Mighty Guard
+(formerly Tail Sweep), which Blue Mages learn from it.
+-->
+
+<MonsterJobCommandTable>
+  <Version>1</Version>
+  <Entries>
+    <MonsterJobCommand>
+      <Id>218</Id> <!-- Dragon -->
+      <AbilityId2>339</AbilityId2> <!-- Thunder Breath (monster copy) -->
+    </MonsterJobCommand>
+  </Entries>
+</MonsterJobCommandTable>

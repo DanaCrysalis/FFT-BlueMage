@@ -1,22 +1,21 @@
 ﻿using BlueMage.Configuration;
 using BlueMage.Template;
-using Reloaded.Memory;
-using Reloaded.Memory.Sigscan;
+using Reloaded.Hooks.Definitions;
 using Reloaded.Memory.SigScan.ReloadedII.Interfaces;
 using Reloaded.Mod.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using IReloadedHooks = Reloaded.Hooks.ReloadedII.Interfaces.IReloadedHooks;
-
-#if DEBUG
-using System.Diagnostics;
-#endif
 
 namespace BlueMage
 {
+    /// <summary>
+    /// Job data, monster rebalance and monster skillsets are applied by fftivc.utility.modloader from
+    /// FFTIVC/tables/enhanced/*.xml. This code only patches the hardcoded tables the mod loader does not expose:
+    /// status inflict data, unit sprites, sprite sheet types and unit portraits.
+    /// </summary>
     public class Mod : ModBase
     {
         private readonly IModLoader _modLoader;
@@ -26,61 +25,77 @@ namespace BlueMage
         private Config _configuration;
         private readonly IModConfig _modConfig;
 
-        // Store the dynamic addresses
-        private IntPtr _dynamicJobAddress = IntPtr.Zero;
-        private IntPtr _dynamicStatusTableAddress = IntPtr.Zero;
-        private IntPtr _dynamicPaletteAddress = IntPtr.Zero;
-        private IntPtr _dynamicPaletteAddress2 = IntPtr.Zero;
-        private IntPtr _dynamicAnimationAddress = IntPtr.Zero;
-        private IntPtr _dynamicVFXAddress = IntPtr.Zero;
-        private IntPtr _dynamicMonSkillsetAddress = IntPtr.Zero;
+        private readonly nint _baseAddress;
+        private readonly object _lock = new();
 
-        // Track whether patches have been applied
-        private bool _patchesApplied = false;
+        private Dualcast? _dualcast;
+        private ReplenishMp? _replenishMp;
+        private SecondaryLearning? _secondaryLearning;
+
+        // Needed together for the monster palette pointer fix
+        private nint _ramzaJobAddress;
+        private nint _monsterPaletteGlobalAddress;
+
+        // Blue Mage and Red Mage occupy two unused special character / job slots.
+        // The unit's spriteset and job are both set to these ids (see OverrideEntryData nxd).
+        private const int BLUE_MAGE_ID = 0x38;
+        private const int RED_MAGE_ID = 0x39;
+
+        // Sprite files loaded for the spritesets (FFTPack ids). The mod replaces both files.
+        private const uint BLUE_MAGE_SPRITE_FILE = 0x5B; // unit/battle_dami_spr.bin
+        private const uint RED_MAGE_SPRITE_FILE = 0x82;  // unit/battle_kasanek_spr.bin
+
+        // Portraits: spriteset -> face id (6 identical u16 tables) -> wldface texture number (u32 table).
+        // Face ids 0x61/0x62 are unused (-1) in the vanilla face map. Face ids >= 0xA0 are only accepted from a
+        // hardcoded whitelist and wldface numbers above 205 are rejected, so both must stay in range.
+        private const int BLUE_MAGE_FACE_ID = 0x61;
+        private const int RED_MAGE_FACE_ID = 0x62;
+        private const uint BLUE_MAGE_WLDFACE = 56; // ui/ffto/common/face/texture/wldface_056_08_uitx.tex
+        private const uint RED_MAGE_WLDFACE = 57;  // ui/ffto/common/face/texture/wldface_057_08_uitx.tex
+
+        // The enhanced UI loads portraits through a wldface -> texture slot table (0..205). Numbers without a vanilla
+        // portrait share the slot of an existing one (56 -> Oracle's, 57 -> Squire's), so the shared portrait is loaded
+        // instead. 584 and 585 are the unused slots of the missing wldface 17 and 18.
+        private const int BLUE_MAGE_FACE_SLOT = 584;
+        private const int RED_MAGE_FACE_SLOT = 585;
+        private const int FACE_SLOT_TABLE_COUNT = 206;
+
+        // Before building the wldface_%03d_%02d path, the UI remaps wldface numbers that have no vanilla portrait
+        // to an existing one (56 -> 118 Oracle, 57 -> 96 Squire). Our numbers must pass through unchanged.
+        private const string PORTRAIT_REMAP_SIGNATURE = "8B D1 83 F9 38 0F 8F ?? ?? ?? ?? 0F 84 ?? ?? ?? ?? 83 F9 2A 7F ?? 74 ??";
+        private delegate int PortraitRemapDelegate(int wldface);
+        private IHook<PortraitRemapDelegate>? _portraitRemapHook;
+
+        private const int PORTRAIT_TABLE_COUNT = 6;
+
+        // Sprite sheet data table (spriteset -> SHP/SEQ type). Signature is the dummy entry 0 followed by the
+        // nine TYPE1 entries and the first TYPE2 one; SHP/SEQ 0 is TYPE1 (generic male), 1 is TYPE2 (generic female).
+        private const string SPRITE_TYPE_TABLE_SIGNATURE =
+            "00 00 00 00 00 00 00 24 00 00 00 24 00 00 00 24 00 00 00 24 00 00 00 24 00 00 00 24 00 00 00 24 00 00 00 24 00 00 00 24 01 01 00 24";
+        private const byte SHP_SEQ_TYPE1 = 0;
+
+        // Entry size constants
+        private const int JOB_ENTRY_SIZE = 49;
+        private const int STATUS_ENTRY_SIZE = 6;
+        private const int SPRITE_ENTRY_SIZE = 8;
+        private const int SPRITE_TYPE_ENTRY_SIZE = 4;
+        private const int PORTRAIT_ENTRY_SIZE = 2;
+        private const int FACEMAP_ENTRY_SIZE = 4;
 
         // Memory patch data structure
         private struct MemoryPatch
         {
             public string Description;
-            public int Offset;
+            public nint Address;
             public byte[] Data;
 
-            public MemoryPatch(string description, int offset, byte[] data)
+            public MemoryPatch(string description, nint address, byte[] data)
             {
                 Description = description;
-                Offset = offset;
+                Address = address;
                 Data = data;
             }
         }
-        private static nint ResolveRva32(nint rvaAddress)
-        {
-            var rva = Memory.Instance.Read<int>((nuint)(rvaAddress - 4));
-            return rvaAddress + rva;
-        }
-
-        // Job/Monster entry size constants
-        private const int JOB_ENTRY_SIZE = 49;
-        private const int STATUS_ENTRY_SIZE = 6;
-        private const int PALETTE_ENTRY_SIZE = 8;
-        private const int ANIMATION_ENTRY_SIZE = 3;
-        private const int VFX_ENTRY_SIZE = 2;
-        private const int MONSKILLSET_ENTRY_SIZE = 5;
-
-        // Define all static memory patches (patches that don't depend on AOB scans)
-        private readonly MemoryPatch[] _staticMemoryPatches = new MemoryPatch[]
-        {
-            // Very Questionable Crash Bug Fix
-            new MemoryPatch("Questionable Crash Fix", 0x37E21C0, new byte[]
-            {  0x91, 0x11, 0x78, 0x40, 0x01, 0x00, 0x00, 0x00 }),
-
-            // Empty Job 57 Portrait Patch - texture 206
-            new MemoryPatch("Empty Job 57 Portrait Patch 1", 0x67EAA2, new byte[] { 0x39 }),
-            new MemoryPatch("Empty Job 57 Portrait Patch 2", 0x67B062, new byte[] { 0x39 }),
-            new MemoryPatch("Empty Job 57 Portrait Patch 3", 0x67B7B2, new byte[] { 0x39 }),
-            new MemoryPatch("Empty Job 57 Portrait Patch 4", 0x67BBF2, new byte[] { 0x39 }),
-            new MemoryPatch("Empty Job 57 Portrait Patch 5", 0x67CA92, new byte[] { 0x39 }),
-            new MemoryPatch("Empty Job 57 Portrait Patch 6", 0x67E702, new byte[] { 0x39 }),
-        };
 
         public Mod(ModContext context)
         {
@@ -95,381 +110,279 @@ namespace BlueMage
             // Attaches debugger in debug mode
             Debugger.Launch();
 #endif
+            _baseAddress = Process.GetCurrentProcess().MainModule!.BaseAddress;
+
             var startupScannerController = _modLoader.GetController<IStartupScanner>();
             if (startupScannerController == null || !startupScannerController.TryGetTarget(out var startupScanner))
             {
-                _logger.WriteLine("[BlueMage] Error: Could not get startup scanner");
+                _logger.WriteLine($"[{_modConfig.ModId}] Error: Could not get startup scanner");
                 return;
             }
 
-            // Ramza Chapter 1: Job ID 1 (0x19 in hex), index 0 in the table
-            startupScanner.AddMainModuleScan("19 00 00 00 00 00 00 00 00 D0 40 06 FF 00 0B 78 0B 69 5F 64 32 6E 30 64 04 03 0A 00 00 00 00 00 00 40 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00", result =>
-            {
-                if (!result.Found)
-                {
-                    _logger.WriteLine($"[{_modConfig.ModId}] Ramza Chapter 1 Data could not be found");
-                    return;
-                }
-
-                var mainModule = Process.GetCurrentProcess().MainModule;
-                if (mainModule != null)
-                {
-                    // moving the Job entry back one since we started at 1
-                    _dynamicJobAddress = mainModule.BaseAddress + result.Offset - JOB_ENTRY_SIZE;
-                    _logger.WriteLine($"[BlueMage] Found job table at: {_dynamicJobAddress:X}");
-
-                    // Check if we have all addresses before applying patches
-                    TryApplyAllPatches();
-                }
-            });
-
-            // Status table scan: Looking for the start of the status inflict table
+            // Status inflict table (6 bytes per entry)
             startupScanner.AddMainModuleScan("00 00 00 00 00 00 10 00 00 00 80 00 10 00 20 00 00 00 10 00 08 00 00 00 10 00 00 02 00 00 10 00", result =>
             {
-                if (!result.Found)
-                {
-                    _logger.WriteLine($"[{_modConfig.ModId}] Status table could not be found");
+                if (!Found(result.Found, "Status table"))
                     return;
-                }
 
-                var mainModule = Process.GetCurrentProcess().MainModule;
-                if (mainModule != null)
-                {
-                    _dynamicStatusTableAddress = mainModule.BaseAddress + result.Offset;
-                    _logger.WriteLine($"[BlueMage] Found status table at: {_dynamicStatusTableAddress:X}");
-
-                    // Check if we have all addresses before applying patches
-                    TryApplyAllPatches();
-                }
+                var statusTable = _baseAddress + result.Offset;
+                ApplyPatches(
+                    new MemoryPatch("Mighty Guard Inflict Status (7A)", statusTable + STATUS_ENTRY_SIZE * 0x7A, new byte[] { 0x80, 0x00, 0x00, 0x00, 0x38, 0x00 }),
+                    new MemoryPatch("Blaster Inflict Status (7B)", statusTable + STATUS_ENTRY_SIZE * 0x7B, new byte[] { 0x40, 0x00, 0x80, 0x00, 0x06, 0x00 }));
             });
 
-            // Palette data scan: Looking for the start of the palette data structure
+            // Spriteset -> sprite file tables, from the two LEAs of the palette loader.
+            // Entries are { u32 fftpack file id, u32 read size }; only the file id is changed.
             startupScanner.AddMainModuleScan("48 8D 0D ?? ?? ?? ?? 4C 8D 35 ?? ?? ?? ?? 4C 0F 44 F1 43 8B 6C FE 04", result =>
             {
-                if (!result.Found)
-                {
-                    _logger.WriteLine($"[{_modConfig.ModId}] Palette data could not be found");
+                if (!Found(result.Found, "Sprite table code"))
                     return;
-                }
 
-                var mainModule = Process.GetCurrentProcess().MainModule;
-                if (mainModule != null)
+                var code = _baseAddress + result.Offset;
+                var patches = new List<MemoryPatch>();
+                foreach (var table in new[] { ResolveRipRelative(code, 3, 7), ResolveRipRelative(code + 7, 3, 7) })
                 {
-                    _dynamicPaletteAddress = mainModule.BaseAddress + 7 + result.Offset;
-                    _dynamicPaletteAddress2 = mainModule.BaseAddress + 14 + result.Offset;
-                    _dynamicPaletteAddress = ResolveRva32(mainModule.BaseAddress + result.Offset + 7);
-                    _dynamicPaletteAddress2 = ResolveRva32(mainModule.BaseAddress + result.Offset + 14);
-                    _logger.WriteLine($"[BlueMage] Found palette data at: {_dynamicPaletteAddress:X}");
-
-                    // Check if we have all addresses before applying patches
-                    TryApplyAllPatches();
+                    patches.Add(new MemoryPatch("Blue Mage Sprite", table + SPRITE_ENTRY_SIZE * BLUE_MAGE_ID, BitConverter.GetBytes(BLUE_MAGE_SPRITE_FILE)));
+                    patches.Add(new MemoryPatch("Red Mage Sprite", table + SPRITE_ENTRY_SIZE * RED_MAGE_ID, BitConverter.GetBytes(RED_MAGE_SPRITE_FILE)));
                 }
+                ApplyPatches(patches.ToArray());
             });
-            // Animation data scan: Looking for the start of the animation data structure
-            startupScanner.AddMainModuleScan("00 2C 00 01 2C 00 01 2C 00 01 2C 00 01 2C 00 01 2C 00 01 2C 00 01 2C 00 01 2C 00", result =>
+
+            // Spriteset -> sprite sheet data (4 bytes per entry: SHP id, SEQ id, flying flag, graphic height).
+            // The SHP/SEQ ids pick the frame assembly and animation sequence files the sheet is drawn for; both
+            // mage sheets are generic male (TYPE1) sheets, but spriteset 0x38 is a TYPE2 (generic female) slot,
+            // which animates the wrong frames. Only the two type bytes are changed, height and flying are kept.
+            startupScanner.AddMainModuleScan(SPRITE_TYPE_TABLE_SIGNATURE, result =>
             {
-                if (!result.Found)
-                {
-                    _logger.WriteLine($"[{_modConfig.ModId}] Animation data could not be found");
+                if (!Found(result.Found, "Sprite sheet data table"))
                     return;
-                }
 
-                var mainModule = Process.GetCurrentProcess().MainModule;
-                if (mainModule != null)
-                {
-                    _dynamicAnimationAddress = mainModule.BaseAddress + result.Offset;
-                    _logger.WriteLine($"[BlueMage] Found animation data at: {_dynamicAnimationAddress:X}");
-
-                    // Check if we have all addresses before applying patches
-                    TryApplyAllPatches();
-                }
+                var spriteTypeTable = _baseAddress + result.Offset;
+                ApplyPatches(
+                    new MemoryPatch("Blue Mage Sprite Type", spriteTypeTable + SPRITE_TYPE_ENTRY_SIZE * BLUE_MAGE_ID, new byte[] { SHP_SEQ_TYPE1, SHP_SEQ_TYPE1 }),
+                    new MemoryPatch("Red Mage Sprite Type", spriteTypeTable + SPRITE_TYPE_ENTRY_SIZE * RED_MAGE_ID, new byte[] { SHP_SEQ_TYPE1, SHP_SEQ_TYPE1 }));
             });
 
-            // VFX data scan: Looking for the start of the VFX table
-            startupScanner.AddMainModuleScan("00 00 01 00 02 00 03 00 04 00 05 00 06 00 07 00 08 00 09 00 0A 00 0B 00 0C 00 0D 00 0E 00 0F 00 10 00 11 00 12 00 13 00 14 00 15 00 16 00 17 00 18 00 19 00 1A 00 1B 00 1C 00 1D 00 1E 00 1F 00 20 00 21 00 22 00 23 00 24 00 27 00 28 00 29 00 2B 00 2C 00 2D 00 2E 00 2F 00 A1 00", result =>
+            // Spriteset -> face id tables. There are six identical copies, each used by a different screen.
+            startupScanner.AddMainModuleScan("00 00 00 00 01 00 02 00 03 00 78 00 79 00 04 00 7A 00 7B 00 7C 00 7D 00 05 00 06 00 7E", result =>
             {
-                if (!result.Found)
-                {
-                    _logger.WriteLine($"[{_modConfig.ModId}] VFX data could not be found");
+                if (!Found(result.Found, "Portrait tables"))
                     return;
-                }
 
-                var mainModule = Process.GetCurrentProcess().MainModule;
-                if (mainModule != null)
+                var tables = FindAllInSection(_baseAddress + result.Offset, new byte[]
                 {
-                    _dynamicVFXAddress = mainModule.BaseAddress + result.Offset;
-                    _logger.WriteLine($"[BlueMage] Found VFX data at: {_dynamicVFXAddress:X}");
+                    0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x78, 0x00, 0x79, 0x00, 0x04, 0x00,
+                    0x7A, 0x00, 0x7B, 0x00, 0x7C, 0x00, 0x7D, 0x00, 0x05, 0x00, 0x06, 0x00, 0x7E
+                });
+                if (tables.Count != PORTRAIT_TABLE_COUNT)
+                    _logger.WriteLine($"[{_modConfig.ModId}] Warning: expected {PORTRAIT_TABLE_COUNT} portrait tables, found {tables.Count}");
 
-                    // Check if we have all addresses before applying patches
-                    TryApplyAllPatches();
+                var patches = new List<MemoryPatch>();
+                foreach (var table in tables)
+                {
+                    patches.Add(new MemoryPatch("Blue Mage Portrait", table + PORTRAIT_ENTRY_SIZE * BLUE_MAGE_ID, BitConverter.GetBytes((ushort)BLUE_MAGE_FACE_ID)));
+                    patches.Add(new MemoryPatch("Red Mage Portrait", table + PORTRAIT_ENTRY_SIZE * RED_MAGE_ID, BitConverter.GetBytes((ushort)RED_MAGE_FACE_ID)));
                 }
+                ApplyPatches(patches.ToArray());
             });
 
-            // Monster Skillset data scan: Looking for the start of the Monster skillset table
-            startupScanner.AddMainModuleScan("D0 09 0D 00 0C F0 09 0A 0C 0B F0 09 0A 0B 0D D0 0E 11 00 0F D0 0E 10", result =>
+            // Face id -> wldface table, from the LEA in the face lookup helper
+            startupScanner.AddMainModuleScan("48 8D 0D ?? ?? ?? ?? 8B 04 81 C3 B8 C2 00 00 00", result =>
             {
-                if (!result.Found)
+                if (!Found(result.Found, "Face map code"))
+                    return;
+
+                var faceMap = ResolveRipRelative(_baseAddress + result.Offset, 3, 7);
+                WarnIfFaceIdUsed(faceMap, BLUE_MAGE_FACE_ID);
+                WarnIfFaceIdUsed(faceMap, RED_MAGE_FACE_ID);
+                ApplyPatches(
+                    new MemoryPatch("Blue Mage Face", faceMap + FACEMAP_ENTRY_SIZE * BLUE_MAGE_FACE_ID, BitConverter.GetBytes(BLUE_MAGE_WLDFACE)),
+                    new MemoryPatch("Red Mage Face", faceMap + FACEMAP_ENTRY_SIZE * RED_MAGE_FACE_ID, BitConverter.GetBytes(RED_MAGE_WLDFACE)));
+            });
+
+            // wldface -> UI texture slot table
+            startupScanner.AddMainModuleScan("FF FF FF FF 38 02 00 00 39 02 00 00 3A 02 00 00 3B 02 00 00 3C 02 00 00", result =>
+            {
+                if (!Found(result.Found, "Face slot table"))
+                    return;
+
+                var slotTable = _baseAddress + result.Offset;
+                WarnIfFaceSlotUsed(slotTable, BLUE_MAGE_FACE_SLOT);
+                WarnIfFaceSlotUsed(slotTable, RED_MAGE_FACE_SLOT);
+                ApplyPatches(
+                    new MemoryPatch("Blue Mage Face Slot", slotTable + FACEMAP_ENTRY_SIZE * (int)BLUE_MAGE_WLDFACE, BitConverter.GetBytes(BLUE_MAGE_FACE_SLOT)),
+                    new MemoryPatch("Red Mage Face Slot", slotTable + FACEMAP_ENTRY_SIZE * (int)RED_MAGE_WLDFACE, BitConverter.GetBytes(RED_MAGE_FACE_SLOT)));
+            });
+
+            // wldface remap applied before loading a portrait, see PORTRAIT_REMAP_SIGNATURE
+            startupScanner.AddMainModuleScan(PORTRAIT_REMAP_SIGNATURE, result =>
+            {
+                if (!Found(result.Found, "Portrait remap function"))
+                    return;
+
+                if (_hooks == null)
                 {
-                    _logger.WriteLine($"[{_modConfig.ModId}] Monster Skillset data could not be found");
+                    _logger.WriteLine($"[{_modConfig.ModId}] Error: Could not get hooks, portraits will not be replaced");
                     return;
                 }
 
-                var mainModule = Process.GetCurrentProcess().MainModule;
-                if (mainModule != null)
-                {
-                    _dynamicMonSkillsetAddress = mainModule.BaseAddress + result.Offset;
-                    _logger.WriteLine($"[BlueMage] Found monster skillset data at: {_dynamicMonSkillsetAddress:X}");
+                _portraitRemapHook = _hooks.CreateHook<PortraitRemapDelegate>(PortraitRemapImpl, _baseAddress + result.Offset).Activate();
+                _logger.WriteLine($"[{_modConfig.ModId}] Hooked portrait remap at {_baseAddress + result.Offset:X}");
+            });
 
-                    // Check if we have all addresses before applying patches
-                    TryApplyAllPatches();
+            // Ramza Chapter 1 job entry, used as a safe default for the monster palette pointer
+            startupScanner.AddMainModuleScan("19 00 00 00 00 00 00 00 00 D0 40 06 FF 00 0B 78 0B 69 5F 64 32 6E 30 64 04 03 0A 00 00 00 00 00 00 40", result =>
+            {
+                if (!Found(result.Found, "Ramza Chapter 1 job data"))
+                    return;
+
+                lock (_lock)
+                {
+                    _ramzaJobAddress = _baseAddress + result.Offset;
+                    TrySeedMonsterPaletteGlobal();
                 }
             });
 
+            // Global pointer to the last monster's job data, stored here and read for the portrait palette.
+            // Portrait code reads it without a null check for face ids >= 0x3F, which crashes if no monster
+            // portrait was drawn yet. Our face ids are in that range.
+            startupScanner.AddMainModuleScan("48 89 0D ?? ?? ?? ?? 0F B6 49 2E 41 80 F8 5B", result =>
+            {
+                if (!Found(result.Found, "Monster palette pointer"))
+                    return;
 
+                lock (_lock)
+                {
+                    _monsterPaletteGlobalAddress = ResolveRipRelative(_baseAddress + result.Offset, 3, 7);
+                    TrySeedMonsterPaletteGlobal();
+                }
+            });
+
+            // Dualcast (support ability 481), Replenish MP (reaction ability 443) and learning on hit through the
+            // secondary skillset install their own hooks; they share the scanner and hooks APIs.
+            if (_hooks != null)
+            {
+                _dualcast = new Dualcast(_modLoader, _hooks, _logger, _modConfig, startupScanner);
+                _replenishMp = new ReplenishMp(_hooks, _logger, _modConfig, startupScanner);
+                _secondaryLearning = new SecondaryLearning(_hooks, _logger, _modConfig, startupScanner);
+            }
+            else
+                _logger.WriteLine($"[{_modConfig.ModId}] Error: no hooks API, Dualcast, Replenish MP and secondary skillset learning will not be active");
         }
 
-        private void TryApplyAllPatches()
+        private int PortraitRemapImpl(int wldface)
         {
-            // Only apply patches once we have all addresses and haven't applied them yet
-            if (!_patchesApplied &&
-                _dynamicJobAddress != IntPtr.Zero &&
-                _dynamicStatusTableAddress != IntPtr.Zero &&
-                _dynamicPaletteAddress != IntPtr.Zero &&
-                _dynamicAnimationAddress != IntPtr.Zero &&
-                _dynamicVFXAddress != IntPtr.Zero &&
-                _dynamicMonSkillsetAddress != IntPtr.Zero)
+            if (wldface == BLUE_MAGE_WLDFACE || wldface == RED_MAGE_WLDFACE)
+                return wldface;
+
+            return _portraitRemapHook!.OriginalFunction(wldface);
+        }
+
+        private bool Found(bool found, string name)
+        {
+            if (!found)
+                _logger.WriteLine($"[{_modConfig.ModId}] {name} could not be found");
+            return found;
+        }
+
+        private unsafe void TrySeedMonsterPaletteGlobal()
+        {
+            if (_ramzaJobAddress == 0 || _monsterPaletteGlobalAddress == 0)
+                return;
+
+            // Only fill it if the game has not set it; Ramza's entry has a monster palette of 0
+            if (*(nint*)_monsterPaletteGlobalAddress == 0)
+                ApplyPatches(new MemoryPatch("Monster Palette Pointer Default", _monsterPaletteGlobalAddress, BitConverter.GetBytes((long)_ramzaJobAddress)));
+        }
+
+        private unsafe void WarnIfFaceIdUsed(nint faceMap, int faceId)
+        {
+            uint current = *(uint*)(faceMap + FACEMAP_ENTRY_SIZE * faceId);
+            if (current != uint.MaxValue)
+                _logger.WriteLine($"[{_modConfig.ModId}] Warning: face id {faceId:X} was already mapped to wldface {current}, another mod may be using it");
+        }
+
+        private unsafe void WarnIfFaceSlotUsed(nint slotTable, int slot)
+        {
+            for (int i = 0; i < FACE_SLOT_TABLE_COUNT; i++)
             {
-                _patchesApplied = true;
-                ApplyAllPatches();
+                if (*(int*)(slotTable + FACEMAP_ENTRY_SIZE * i) == slot)
+                    _logger.WriteLine($"[{_modConfig.ModId}] Warning: face slot {slot} is already used by wldface {i}, another mod may be using it");
             }
         }
 
-        private unsafe void ApplyAllPatches()
+        // Reads a rip-relative operand: target = instruction + instructionLength + disp32
+        private static unsafe nint ResolveRipRelative(nint instruction, int displacementOffset, int instructionLength)
         {
-            try
+            return instruction + instructionLength + *(int*)(instruction + displacementOffset);
+        }
+
+        // Finds every occurrence of a pattern within the PE section containing 'address'
+        private unsafe List<nint> FindAllInSection(nint address, byte[] pattern)
+        {
+            var results = new List<nint>();
+            var (start, size) = GetSectionBounds(address);
+            if (size == 0)
+                return results;
+
+            var section = new ReadOnlySpan<byte>((void*)start, size);
+            int offset = 0;
+            while (true)
             {
-                var mainModule = Process.GetCurrentProcess().MainModule;
-                if (mainModule == null)
-                {
-                    _logger.WriteLine("[BlueMage] Error: Could not get main module");
-                    return;
-                }
+                int index = section.Slice(offset).IndexOf(pattern);
+                if (index < 0)
+                    break;
 
-                var baseAddress = mainModule.BaseAddress;
+                results.Add(start + offset + index);
+                offset += index + 1;
+            }
+            return results;
+        }
 
+        private unsafe (nint Start, int Size) GetSectionBounds(nint address)
+        {
+            byte* pe = (byte*)_baseAddress + *(int*)(_baseAddress + 0x3C);
+            ushort numSections = *(ushort*)(pe + 6);
+            ushort optionalHeaderSize = *(ushort*)(pe + 20);
+            byte* section = pe + 24 + optionalHeaderSize;
+            for (int i = 0; i < numSections; i++, section += 40)
+            {
+                uint virtualSize = *(uint*)(section + 8);
+                uint virtualAddress = *(uint*)(section + 12);
+                nint start = _baseAddress + (nint)virtualAddress;
+                if (address >= start && address < start + (nint)virtualSize)
+                    return (start, (int)virtualSize);
+            }
+            return (0, 0);
+        }
+
+        private void ApplyPatches(params MemoryPatch[] patches)
+        {
+            // Scan callbacks may run concurrently and patches can share pages, so protection changes are serialized
+            lock (_lock)
+            {
                 int successfulPatches = 0;
-                int failedPatches = 0;
-
-                _logger.WriteLine($"[BlueMage] Starting Blue Mage mod - applying patches");
-                _logger.WriteLine($"[BlueMage] Base address: {baseAddress:X}");
-                _logger.WriteLine($"[BlueMage] Job table address: {_dynamicJobAddress:X}");
-                _logger.WriteLine($"[BlueMage] Monster Skillset data address: {_dynamicMonSkillsetAddress:X}");
-                _logger.WriteLine($"[BlueMage] Status table address: {_dynamicStatusTableAddress:X}");
-                _logger.WriteLine($"[BlueMage] Palette data address: {_dynamicPaletteAddress:X}");
-                _logger.WriteLine($"[BlueMage] Animation data address: {_dynamicAnimationAddress:X}");
-                _logger.WriteLine($"[BlueMage] VFX data address: {_dynamicVFXAddress:X}");
-
-                // Create list to hold all patches
-                var allPatches = new List<MemoryPatch>();
-
-                // Add all static patches
-                allPatches.AddRange(_staticMemoryPatches);
-
-                // Add dynamic patches based on job table location
-                long jobTableOffset = _dynamicJobAddress.ToInt64() - baseAddress.ToInt64();
-
-                // Job 56 (Blue Mage)
-                // Temp move to Valmafra: 33
-                allPatches.Add(new MemoryPatch(
-                    "Blue Mage - Job Bytes",
-                    (int)(jobTableOffset + (JOB_ENTRY_SIZE * 33)),
-                    new byte[]
-                    {
-                        0x50, 0xDE, 0x01, 0xD9, 0x01, 0x00, 0x00, 0x00, 0x00,
-                        0xD1, 0x80, 0x1F, 0xFF, 0x00,
-                        0x0B, 0x5A, 0x08, 0x78, 0x64, 0x5A, 0x32, 0x64, 0x30, 0x6E, 0x04, 0x04, 0x0A,
-                        0x00, 0x00, 0x00, 0x00, 0x00,
-                        0x00, 0x40, 0x00, 0x00, 0x00,
-                        0x00, 0x00, 0x00, 0x00, 0x00,
-                        0x00, 0x00, 0x00, 0x00,
-                        0x00, 0x00, 0x00
-                    }
-                ));
-
-                // Job 57 (Red Mage) 
-                allPatches.Add(new MemoryPatch(
-                    "Red Mage - Job Bytes",
-                    (int)(jobTableOffset + (JOB_ENTRY_SIZE * 57)),
-                    new byte[]
-                    {
-                        0x51, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                        0xD1, 0x80, 0x1F, 0xFF, 0x00,
-                        0x0B, 0x5A, 0x08, 0x78, 0x64, 0x5A, 0x32, 0x64, 0x30, 0x6E, 0x04, 0x04, 0x0A,
-                        0x00, 0x00, 0x00, 0x00, 0x00,
-                        0x00, 0x40, 0x00, 0x00, 0x00,
-                        0x00, 0x00, 0x00, 0x00, 0x00,
-                        0x00, 0x00, 0x00, 0x00,
-                        0x00, 0x00, 0x00
-                    }
-                ));
-
-                // Monster Rebalance Patch - starts at Monster ID 93 (0xB0)
-                // Monsters start at Job ID 94 = index 93
-                allPatches.Add(new MemoryPatch(
-                    "Monster Rebalance Patch",
-                    (int)(jobTableOffset + (JOB_ENTRY_SIZE * 93)),
-                    new byte[]
-                    {
-                        0xB0, 0xF7, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x08, 0x6C, 0x03, 0x64, 0x4B, 0x77, 0x23, 0x62, 0x09, 0x39, 0x06, 0x05, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x86, 0x00, 0x01,
-                        0xB1, 0xF7, 0x01, 0xFB, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x50, 0x03, 0xA0, 0x55, 0x62, 0x27, 0x96, 0x09, 0x3E, 0x06, 0x05, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x86, 0x01, 0x01,
-                        0xB2, 0xF7, 0x01, 0xEC, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x04, 0x5B, 0x03, 0x7A, 0x55, 0x88, 0x27, 0x82, 0x09, 0x3C, 0x06, 0x05, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x86, 0x02, 0x01,
-                        0xB3, 0x00, 0x00, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x75, 0x03, 0x7A, 0x55, 0x69, 0x27, 0x62, 0x09, 0x34, 0x03, 0x03, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x87, 0x00, 0x02,
-                        0xB4, 0x00, 0x00, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x56, 0x03, 0x73, 0x55, 0x72, 0x27, 0x67, 0x09, 0x35, 0x03, 0x03, 0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x87, 0x01, 0x02,
-                        0xB5, 0x00, 0x00, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x62, 0x03, 0x96, 0x55, 0x80, 0x27, 0x73, 0x09, 0x38, 0x03, 0x03, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x87, 0x02, 0x02,
-                        0xB6, 0xF1, 0x01, 0xFA, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x55, 0x03, 0x78, 0x5A, 0x68, 0x27, 0x64, 0x09, 0x38, 0x03, 0x03, 0x0A, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x08, 0x20, 0x04, 0x88, 0x00, 0x03,
-                        0xB7, 0xF1, 0x01, 0xFA, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x57, 0x03, 0x78, 0x5A, 0x73, 0x27, 0x55, 0x09, 0x39, 0x03, 0x03, 0x0B, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x08, 0x20, 0x04, 0x88, 0x01, 0x03,
-                        0xB8, 0xF1, 0x01, 0xFA, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x7C, 0x03, 0x78, 0x5A, 0x64, 0x27, 0x74, 0x09, 0x3A, 0x03, 0x03, 0x0C, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x08, 0x20, 0x04, 0x88, 0x02, 0x03,
-                        0xB9, 0xF1, 0x01, 0xEC, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x74, 0x03, 0x78, 0x55, 0x74, 0x27, 0x62, 0x09, 0x37, 0x04, 0x04, 0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x89, 0x00, 0x04,
-                        0xBA, 0xF1, 0x01, 0xEC, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x5B, 0x03, 0x78, 0x55, 0x81, 0x27, 0x74, 0x09, 0x3E, 0x04, 0x04, 0x1A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x89, 0x01, 0x04,
-                        0xBB, 0xF1, 0x01, 0xEC, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x63, 0x03, 0x78, 0x55, 0x86, 0x27, 0x84, 0x09, 0x34, 0x04, 0x04, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x89, 0x02, 0x04,
-                        0xBC, 0x00, 0x00, 0xF9, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x6C, 0x03, 0x78, 0x55, 0x6F, 0x27, 0x5A, 0x09, 0x3A, 0x03, 0x03, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x40, 0x8A, 0x00, 0x05,
-                        0xBD, 0x00, 0x00, 0xF9, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x73, 0x03, 0x78, 0x55, 0x65, 0x27, 0x65, 0x09, 0x3A, 0x03, 0x03, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x40, 0x8A, 0x01, 0x05,
-                        0xBE, 0x00, 0x00, 0xF9, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x5C, 0x03, 0x78, 0x55, 0x70, 0x27, 0x7F, 0x09, 0x38, 0x03, 0x03, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x40, 0x8A, 0x02, 0x05,
-                        0xBF, 0x00, 0x00, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x05, 0x73, 0x03, 0x78, 0x55, 0x78, 0x27, 0x6C, 0x09, 0x34, 0x03, 0x04, 0x0B, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x20, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x82, 0x8B, 0x00, 0x06,
-                        0xC0, 0x00, 0x00, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x05, 0x5A, 0x03, 0x78, 0x55, 0x6A, 0x27, 0x7B, 0x09, 0x35, 0x03, 0x04, 0x0C, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x20, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x82, 0x8B, 0x01, 0x06,
-                        0xC1, 0x00, 0x00, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x05, 0x65, 0x03, 0x78, 0x55, 0x66, 0x27, 0x7D, 0x09, 0x36, 0x03, 0x04, 0x0D, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x20, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x82, 0x8B, 0x02, 0x06,
-                        0xC2, 0xF1, 0x01, 0xE3, 0x01, 0xBA, 0x01, 0xF2, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x53, 0x03, 0x78, 0x55, 0x67, 0x27, 0x5A, 0x09, 0x3E, 0x04, 0x04, 0x1A, 0x10, 0x00, 0x40, 0x00, 0x00, 0x00, 0x04, 0x20, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x82, 0x8C, 0x00, 0x07,
-                        0xC3, 0xF1, 0x01, 0xE3, 0x01, 0xBA, 0x01, 0xF2, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x52, 0x03, 0x78, 0x55, 0x6E, 0x27, 0x5D, 0x09, 0x3F, 0x04, 0x04, 0x1B, 0x10, 0x00, 0x40, 0x00, 0x00, 0x00, 0x04, 0x20, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x82, 0x8C, 0x01, 0x07,
-                        0xC4, 0xF1, 0x01, 0xE3, 0x01, 0xBA, 0x01, 0xF2, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x5D, 0x03, 0x78, 0x55, 0x79, 0x27, 0x61, 0x09, 0x41, 0x05, 0x04, 0x1C, 0x10, 0x00, 0x40, 0x00, 0x00, 0x00, 0x04, 0x20, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x82, 0x8C, 0x02, 0x07,
-                        0xC5, 0xF1, 0x01, 0xFB, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x50, 0x03, 0x78, 0x55, 0x68, 0x28, 0x5A, 0x09, 0x39, 0x05, 0x05, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x20, 0x8D, 0x00, 0x08,
-                        0xC6, 0xF1, 0x01, 0xFB, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x4B, 0x03, 0x78, 0x55, 0x5F, 0x28, 0x8C, 0x09, 0x38, 0x05, 0x05, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x20, 0x8D, 0x01, 0x08,
-                        0xC7, 0xF1, 0x01, 0xFB, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x4D, 0x03, 0x78, 0x55, 0x6C, 0x28, 0x7F, 0x09, 0x46, 0x05, 0x05, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x20, 0x8D, 0x02, 0x08,
-                        0xC8, 0xF1, 0x01, 0xFB, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x5A, 0x03, 0x78, 0x55, 0x71, 0x27, 0x69, 0x09, 0x34, 0x06, 0x06, 0x1E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x08, 0x8E, 0x00, 0x09,
-                        0xC9, 0xF1, 0x01, 0xFB, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x55, 0x03, 0x78, 0x55, 0x83, 0x27, 0x6C, 0x09, 0x37, 0x06, 0x06, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x08, 0x8E, 0x01, 0x09,
-                        0xCA, 0xF1, 0x01, 0xFB, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x65, 0x03, 0x78, 0x55, 0x87, 0x27, 0x98, 0x09, 0x3C, 0x06, 0x06, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x08, 0x8E, 0x02, 0x09,
-                        0xCB, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x09, 0x45, 0x03, 0x78, 0x55, 0x8C, 0x27, 0x46, 0x09, 0x41, 0x03, 0x03, 0x2A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8F, 0x00, 0x0A,
-                        0xCC, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x09, 0x53, 0x03, 0x78, 0x55, 0x8B, 0x27, 0x50, 0x09, 0x41, 0x03, 0x03, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8F, 0x01, 0x0A,
-                        0xCD, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x09, 0x4D, 0x03, 0x78, 0x55, 0x8A, 0x27, 0xA0, 0x09, 0x41, 0x03, 0x03, 0x27, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8F, 0x02, 0x0A,
-                        0xCE, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x96, 0x02, 0xA0, 0x5A, 0x63, 0x27, 0x66, 0x09, 0x3C, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x80, 0x90, 0x00, 0x0B,
-                        0xCF, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0x82, 0x02, 0xA0, 0x5A, 0x60, 0x27, 0x59, 0x09, 0x34, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x80, 0x90, 0x01, 0x0B,
-                        0xD0, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x07, 0xAF, 0x02, 0xA0, 0x5A, 0x5E, 0x27, 0x61, 0x09, 0x3B, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x80, 0x90, 0x02, 0x0B,
-                        0xD1, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x87, 0x03, 0x78, 0x55, 0x6B, 0x27, 0x78, 0x09, 0x6C, 0x03, 0x03, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x91, 0x00, 0x0C,
-                        0xD2, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0xA0, 0x10, 0x50, 0x55, 0x6C, 0x27, 0x98, 0x09, 0x6C, 0x04, 0x03, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x91, 0x01, 0x0C,
-                        0xD3, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x97, 0x03, 0x78, 0x55, 0x7A, 0x27, 0xAD, 0x09, 0x6C, 0x03, 0x03, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x91, 0x02, 0x0C,
-                        0xD4, 0x00, 0x00, 0xF6, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x08, 0xAF, 0x03, 0x78, 0x5A, 0x61, 0x26, 0x69, 0x1E, 0x63, 0x03, 0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x92, 0x00, 0x0D,
-                        0xD5, 0x00, 0x00, 0xF6, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x08, 0x91, 0x03, 0x78, 0x5A, 0x5F, 0x27, 0x6E, 0x1B, 0x6E, 0x03, 0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x92, 0x01, 0x0D,
-                        0xD6, 0x00, 0x00, 0xF6, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x08, 0xB5, 0x03, 0x78, 0x58, 0x5D, 0x27, 0x62, 0x18, 0x5F, 0x03, 0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x92, 0x02, 0x0D,
-                        0xD7, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x05, 0x8C, 0x03, 0x78, 0x55, 0x75, 0x24, 0x86, 0x09, 0x3E, 0x04, 0x83, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x93, 0x00, 0x0E,
-                        0xD8, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x05, 0x96, 0x03, 0x8C, 0x55, 0x7B, 0x23, 0x95, 0x09, 0x3C, 0x04, 0x83, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x93, 0x01, 0x0E,
-                        0xD9, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x05, 0xA1, 0x03, 0xA0, 0x55, 0x7D, 0x22, 0xC8, 0x08, 0x39, 0x04, 0x83, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x93, 0x02, 0x0E,
-                        0xDA, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x85, 0x03, 0x78, 0x55, 0x76, 0x27, 0x88, 0x09, 0x3C, 0x05, 0x83, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x94, 0x00, 0x0F,
-                        0xDB, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x87, 0x03, 0x78, 0x55, 0x7C, 0x27, 0x82, 0x09, 0x3E, 0x05, 0x83, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x80, 0x94, 0x01, 0x0F,
-                        0xDC, 0xF1, 0x01, 0x00, 0x00, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x06, 0x9D, 0x03, 0x78, 0x55, 0x84, 0x27, 0x93, 0x08, 0x3C, 0x05, 0x83, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x20, 0x94, 0x02, 0x0F,
-                        0xDD, 0xF1, 0x01, 0xFB, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x03, 0x50, 0x1E, 0x32, 0x55, 0x7E, 0x27, 0x85, 0x21, 0x64, 0x04, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x95, 0x00, 0x10,
-                        0xDE, 0xF1, 0x01, 0xFB, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x03, 0x64, 0x1E, 0xA0, 0x55, 0x85, 0x27, 0x97, 0x1F, 0x64, 0x04, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x95, 0x01, 0x10,
-                        0xDF, 0xF1, 0x01, 0xFB, 0x01, 0xBA, 0x01, 0xE3, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x03, 0x70, 0x1E, 0x5A, 0x55, 0x89, 0x23, 0xAF, 0x1D, 0x78, 0x04, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x95, 0x02, 0x10
-                    }
-                ));
-
-                // Add dynamic status table patches
-                long statusTableOffset = _dynamicStatusTableAddress.ToInt64() - baseAddress.ToInt64();
-
-                // Status ID 0x7A (122 decimal) = index 122 in the status table
-                allPatches.Add(new MemoryPatch(
-                    "Mighty Guard Inflict Status (7A) Patch",
-                    (int)(statusTableOffset + (STATUS_ENTRY_SIZE * 0x7A)),
-                    new byte[]
-                    {
-                        0x80, 0x00, 0x00, 0x00, 0x38, 0x00
-                    }
-                ));
-
-                // Status ID 0x7B (123 decimal) = index 123 in the status table
-                allPatches.Add(new MemoryPatch(
-                    "Blaster Inflict Status (7B) Patch",
-                    (int)(statusTableOffset + (STATUS_ENTRY_SIZE * 0x7B)),
-                    new byte[]
-                    {
-                        0x40, 0x00, 0x80, 0x00, 0x06, 0x00
-                    }
-                ));
-
-                // Add dynamic palette patches
-                long paletteOffset = _dynamicPaletteAddress.ToInt64() - baseAddress.ToInt64();
-                long palette2Offset = _dynamicPaletteAddress2.ToInt64() - baseAddress.ToInt64();
-
-                // Red Mage is at index 57, Blue 56
-                allPatches.Add(new MemoryPatch("Blue Mage Palette Swap", (int)(paletteOffset + (PALETTE_ENTRY_SIZE * 56)), new byte[] { 0x5B }));
-                allPatches.Add(new MemoryPatch("Blue Mage Palette Swap 2", (int)(palette2Offset + (PALETTE_ENTRY_SIZE * 56)), new byte[] { 0x5B }));
-                allPatches.Add(new MemoryPatch("Red Mage Palette Swap", (int)(paletteOffset + (PALETTE_ENTRY_SIZE * 57)),new byte[] { 0x82 }));
-                allPatches.Add(new MemoryPatch("Red Mage Palette Swap 2", (int)(palette2Offset + (PALETTE_ENTRY_SIZE * 57)), new byte[] { 0x82 }));
-                
-
-                // Add dynamic animation patches
-                long animationOffset = _dynamicAnimationAddress.ToInt64() - baseAddress.ToInt64();
-
-                // Mighty Guard: Index 339 (formerly Thunder Breath)
-                allPatches.Add(new MemoryPatch("Mighty Guard Animation Change",(int)(animationOffset + (ANIMATION_ENTRY_SIZE * 339)),new byte[] { 0x2A, 0x00, 0x00 }));
-
-
-                // Add monster skillset patches
-                long monSkillsetOffset = _dynamicMonSkillsetAddress.ToInt64() - baseAddress.ToInt64();
-
-                // Dragon index is 42, Blue Dragon is right after it so just do both
-                allPatches.Add(new MemoryPatch(
-                    "Dragon and Blue Dragon skillset patch",
-                    (int)(monSkillsetOffset + (MONSKILLSET_ENTRY_SIZE * 42)),
-                    new byte[] { 0x90, 0x4F, 0xFA, 0x00, 0x50, 0xD0, 0x4F, 0x51, 0x00, 0x53 }
-                ));
-
-                // Add VFX patches
-                long VFXOffset = _dynamicVFXAddress.ToInt64() - baseAddress.ToInt64();
-
-               
-                // Apply all patches
-                _logger.WriteLine($"[BlueMage] Applying {allPatches.Count} total patches ({_staticMemoryPatches.Length} static, {allPatches.Count - _staticMemoryPatches.Length} dynamic)");
-
-                foreach (var patch in allPatches)
+                foreach (var patch in patches)
                 {
-                    if (ApplySinglePatch(baseAddress, patch))
-                    {
+                    if (ApplySinglePatch(patch))
                         successfulPatches++;
-                    }
-                    else
-                    {
-                        failedPatches++;
-                    }
                 }
 
-                _logger.WriteLine($"[BlueMage] Patching complete!");
-                _logger.WriteLine($"[BlueMage] Successful: {successfulPatches}/{allPatches.Count}");
-                if (failedPatches > 0)
-                {
-                    _logger.WriteLine($"[BlueMage] Failed: {failedPatches}/{allPatches.Count}");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.WriteLine($"[BlueMage] Critical error during patching: {ex.Message}");
+                if (successfulPatches != patches.Length)
+                    _logger.WriteLine($"[{_modConfig.ModId}] Failed: {patches.Length - successfulPatches}/{patches.Length}");
             }
         }
 
-        private unsafe bool ApplySinglePatch(IntPtr baseAddress, MemoryPatch patch)
+        private unsafe bool ApplySinglePatch(MemoryPatch patch)
         {
             try
             {
-                var targetAddress = IntPtr.Add(baseAddress, patch.Offset);
-                byte* ptr = (byte*)targetAddress.ToPointer();
-
-                // Log patch attempt
-                _logger.WriteLine($"[BlueMage] Applying '{patch.Description}' at {targetAddress:X} ({patch.Data.Length} bytes)");
+                byte* ptr = (byte*)patch.Address;
 
                 // Make memory writable
-                uint oldProtect;
-                if (!VirtualProtect(targetAddress, (UIntPtr)patch.Data.Length,
-                    MemoryProtection.ExecuteReadWrite, out oldProtect))
+                if (!VirtualProtect(patch.Address, (UIntPtr)patch.Data.Length, MemoryProtection.ExecuteReadWrite, out uint oldProtect))
                 {
-                    _logger.WriteLine($"[BlueMage] Failed to change memory protection for '{patch.Description}'");
+                    _logger.WriteLine($"[{_modConfig.ModId}] Failed to change memory protection for '{patch.Description}'");
                     return false;
                 }
 
@@ -480,26 +393,24 @@ namespace BlueMage
                 }
 
                 // Restore original protection
-                uint temp;
-                VirtualProtect(targetAddress, (UIntPtr)patch.Data.Length,
-                    (MemoryProtection)oldProtect, out temp);
+                VirtualProtect(patch.Address, (UIntPtr)patch.Data.Length, (MemoryProtection)oldProtect, out _);
 
                 // Verify the patch
                 for (int i = 0; i < patch.Data.Length; i++)
                 {
                     if (ptr[i] != patch.Data[i])
                     {
-                        _logger.WriteLine($"[BlueMage] Verification failed for '{patch.Description}' at byte {i}");
+                        _logger.WriteLine($"[{_modConfig.ModId}] Verification failed for '{patch.Description}' at byte {i}");
                         return false;
                     }
                 }
 
-                _logger.WriteLine($"[BlueMage] Successfully applied '{patch.Description}'");
+                _logger.WriteLine($"[{_modConfig.ModId}] Applied '{patch.Description}' at {patch.Address:X} ({patch.Data.Length} bytes)");
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.WriteLine($"[BlueMage] Exception while applying '{patch.Description}': {ex.Message}");
+                _logger.WriteLine($"[{_modConfig.ModId}] Exception while applying '{patch.Description}': {ex.Message}");
                 return false;
             }
         }

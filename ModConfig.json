@@ -1,21 +1,70 @@
 {
-  "ModId": "BlueMage",
-  "ModName": "FFT Blue Mage",
+  "ModId": "fftivc.jobs.bluemage",
+  "ModName": "FFT Blue and Red Mages",
   "ModAuthor": "Dana Crysalis",
-  "ModVersion": "1.0.0",
-  "ModDescription": "Adds Blue Mage to FFT: The Ivalice Chronicles",
+  "ModVersion": "3.0.9",
+  "ModDescription": "Gives Alicia and Lavian new jobs",
   "ModDll": "BlueMage.dll",
   "ModIcon": "Preview.png",
   "ModR2RManagedDll32": "x86/BlueMage.dll",
   "ModR2RManagedDll64": "x64/BlueMage.dll",
   "ModNativeDll32": "",
   "ModNativeDll64": "",
+  "Tags": [],
+  "CanUnload": false,
+  "HasExports": false,
   "IsLibrary": false,
-  "ReleaseMetadataFileName": "BlueMage.ReleaseMetadata.json",
-  "PluginData": {},
+  "ReleaseMetadataFileName": "fftivc.jobs.bluemage.ReleaseMetadata.json",
+  "IgnoreRegexes": [
+    ".*\\.json"
+  ],
+  "IncludeRegexes": [
+    "\\.deps\\.json",
+    "\\.runtimeconfig\\.json",
+    "ModConfig\\.json"
+  ],
+  "PluginData": {
+    "GitHubDependencies": {
+      "IdToConfigMap": {
+        "fftivc.utility.modloader": {
+          "Config": {
+            "UserName": "Nenkai",
+            "RepositoryName": "fftivc.utility.modloader",
+            "UseReleaseTag": true,
+            "AssetFileName": "Mod.zip"
+          },
+          "ReleaseMetadataName": "fftivc.utility.modloader.ReleaseMetadata.json"
+        },
+        "Reloaded.Memory.SigScan.ReloadedII": {
+          "Config": {
+            "UserName": "Reloaded-Project",
+            "RepositoryName": "Reloaded.Memory.SigScan",
+            "UseReleaseTag": false,
+            "AssetFileName": "Mod.zip"
+          },
+          "ReleaseMetadataName": "Reloaded.Memory.SigScan.ReloadedII.ReleaseMetadata.json"
+        },
+        "reloaded.sharedlib.hooks": {
+          "Config": {
+            "UserName": "Sewer56",
+            "RepositoryName": "Reloaded.SharedLib.Hooks.ReloadedII",
+            "UseReleaseTag": true,
+            "AssetFileName": "reloaded.sharedlib.hooks.zip"
+          },
+          "ReleaseMetadataName": "Sewer56.Update.ReleaseMetadata.json"
+        }
+      }
+    }
+  },
   "IsUniversalMod": false,
-  "ModDependencies": [ "reloaded.sharedlib.hooks" ],
+  "ModDependencies": [
+    "fftivc.utility.modloader",
+    "Reloaded.Memory.SigScan.ReloadedII",
+    "reloaded.sharedlib.hooks"
+  ],
   "OptionalDependencies": [],
-  "SupportedAppId": [],
+  "SupportedAppId": [
+    "fft_enhanced.exe"
+  ],
   "ProjectUrl": ""
 }
